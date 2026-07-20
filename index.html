@@ -36,11 +36,9 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // ==========================================
-        // CREDENCIALES CORREGIDAS (SIN ESPACIOS)
-        // ==========================================
+        // CREDENCIALES
         const THINGER_USER = "edson75";
-        const DEVICE_ID = "Puente_ESP32"; // <-- Corregido: con guion bajo, sin espacios
+        const DEVICE_ID = "Puente_ESP32";
         const RESOURCE_ID = "sensores";
         const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJXZWJUb2tlbiIsInN2ciI6InVzLWVhc3QuYXdzLnRoaW5nZXIuaW8iLCJ1c3IiOiJlZHNvbjc1In0.hDtWxwbIQYjls3Z5YHZ029BFzM2gwIuER8PctgCeDoY";
         
@@ -55,17 +53,22 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
 
-        // ILUMINACIÓN
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+        // ILUMINACIÓN REALISTA CON SOMBRAS
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
-        dirLight.position.set(20, 40, 20);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(30, 50, 30);
+        dirLight.castShadow = true;
         scene.add(dirLight);
+
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        scene.add(hemiLight);
 
         let puenteTablero = null;
         let aguaSuperficie = null;
@@ -73,19 +76,12 @@
 
         const matFuego = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-        // MATERIALES DE COLORES PERSONALIZADOS
-        const matArboles = new THREE.MeshStandardMaterial({ color: 0x5a9e6f, roughness: 0.6 });
-        const matPasto = new THREE.MeshStandardMaterial({ color: 0xb5ca7d, roughness: 0.8 });
-        const matPista = new THREE.MeshStandardMaterial({ color: 0x3d3d3d, roughness: 0.5 });
-        const matPilares = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.3 });
-        const matSueloBorde = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.7 });
-
-        // CARGA Y COLORACIÓN DEL MODELO 3D
+        // CARGA Y DESPLIEGUE SEGURO DEL MODELO 3D
         const loader = new GLTFLoader();
         loader.load('puente.glb', (gltf) => {
             const model = gltf.scene;
 
-            // Reencuadre y centrado automático
+            // Centrado y escalado automático
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
@@ -105,27 +101,16 @@
             controls.target.set(0, 0, 0);
             controls.update();
 
-            // Recorrer el modelo y asignar colores por nombre de pieza/geometría
+            // Activar recepción y proyección de sombras en las mallas existentes
             model.traverse((child) => {
                 if (child.isMesh) {
-                    const name = child.name.toLowerCase();
-
-                    if (name.includes('arbol') || name.includes('vegetacion') || name.includes('hoja')) {
-                        child.material = matArboles;
-                    } else if (name.includes('pasto') || name.includes('terreno') || name.includes('tierra')) {
-                        child.material = matPasto;
-                    } else if (name.includes('pista') || name.includes('asfalto') || name.includes('vía')) {
-                        child.material = matPista;
-                    } else if (name.includes('pilar') || name.includes('columna')) {
-                        child.material = matPilares;
-                    } else if (name.includes('base') || name.includes('borde')) {
-                        child.material = matSueloBorde;
-                    }
+                    child.castShadow = true;
+                    child.receiveShadow = true;
                 }
             });
 
             scene.add(model);
-            console.log("¡Puente 3D cargado correctamente con colores y parámetros actualizados!");
+            console.log("¡Modelo visualizado correctamente!");
 
             puenteTablero = model.getObjectByName('Tablero_Puente') || model;
             aguaSuperficie = model.getObjectByName('Superficie_Agua');
@@ -143,7 +128,7 @@
                     headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
                 });
                 if (!res.ok) {
-                    console.log("Esperando respuesta válida de Thinger.io... Status:", res.status);
+                    console.log("Esperando respuesta de Thinger.io... Status:", res.status);
                     return;
                 }
                 const json = await res.json();
@@ -151,7 +136,7 @@
 
                 actualizar3D(datos);
             } catch (e) {
-                console.log("Esperando conexión con ESP32...");
+                console.log("Conectando con ESP32...");
             }
         }
 
