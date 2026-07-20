@@ -17,8 +17,9 @@
 </head>
 <body>
     <div id="overlay">
-        <p>Agua: <span id="txt-agua" class="val">--</span> cm</p>
-        <p>Inclinación X: <span id="txt-rotx" class="val">--</span> °</p>
+        <h3>Gemelo Digital en Vivo</h3>
+        <p>Agua (HC-SR04): <span id="txt-agua" class="val">--</span> cm</p>
+        <p>Inclinación X (MPU): <span id="txt-rotx" class="val">--</span> °</p>
     </div>
 
     <script type="module">
@@ -28,23 +29,20 @@
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
-        
-        // 1. Zoom: Ajuste de cámara más alejada para ver todo el puente
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.set(50, 50, 50); 
+        camera.position.set(40, 40, 40); 
         
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
-        
-        const controls = new OrbitControls(camera, renderer.domElement);
+        new OrbitControls(camera, renderer.domElement);
         scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
         let tablero, agua;
         const loader = new GLTFLoader();
         loader.load('https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/PUENTES1.glb', (gltf) => {
             scene.add(gltf.scene);
-            // Buscamos las piezas
+            // Identificación de objetos
             tablero = gltf.scene.getObjectByName('Tablero_Puente');
             agua = gltf.scene.getObjectByName('Superficie_Agua');
         });
@@ -60,16 +58,20 @@
                 document.getElementById('txt-agua').innerText = aguaDist.toFixed(1);
                 document.getElementById('txt-rotx').innerText = rotX.toFixed(2);
 
-                // Rotar solo el tablero
-                if (tablero) tablero.rotation.z = THREE.MathUtils.degToRad(rotX);
+                // Rotación del tablero (suavizada con factor 0.1)
+                if (tablero) tablero.rotation.z = THREE.MathUtils.degToRad(rotX) * 0.1;
                 
-                // Animar agua
-                if (agua) agua.position.y = Math.max(0, 27 - aguaDist) * 0.5;
+                // Visualización del agua: 
+                // Usamos 27 como altura máxima, multiplicamos por 0.5 para que el movimiento sea visible
+                if (agua) {
+                    let alturaVisibilidad = Math.max(0, 27 - aguaDist);
+                    agua.position.y = alturaVisibilidad * 0.5;
+                }
 
-            } catch(e) {}
+            } catch(e) { console.error("Error al leer ThingSpeak"); }
         }
 
-        setInterval(actualizar, 5000);
+        setInterval(actualizar, 3000);
         function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
         animate();
     </script>
