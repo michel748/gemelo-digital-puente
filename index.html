@@ -60,17 +60,15 @@
         scene.add(dirLight);
 
         let puenteTablero = null, aguaSuperficie = null, marcadorFuego = null;
-        const matFuego = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
         const loader = new GLTFLoader();
-        // RUTA CORREGIDA: Apunta directamente al archivo en tu repositorio
-        const modelUrl = 'https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/puente.glb';
+        // RUTA ACTUALIZADA AL NUEVO ARCHIVO
+        const modelUrl = 'https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/PUENTES.glb';
 
         loader.load(modelUrl, (gltf) => {
             const model = gltf.scene;
             scene.add(model);
             
-            // Debug para verificar nombres de piezas en consola (F12)
             console.log("Estructura del modelo cargado:", model);
 
             const box = new THREE.Box3().setFromObject(model);
