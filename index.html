@@ -3,90 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <title>Gemelo Digital - Puente Atirantado</title>
-    <!-- Mantenemos tus estilos originales -->
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { width: 100%; height: 100%; overflow: hidden; background-color: #0b0e14; font-family: sans-serif; }
-        #app-container { position: relative; width: 100vw; height: 100vh; }
-        .hud-grid { position: absolute; top: 45px; left: 20px; z-index: 10; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; pointer-events: none; }
-        .hud-card { background: rgba(13, 17, 23, 0.8); border-left: 3px solid #2ea043; padding: 6px 12px; border-radius: 3px; }
-        .hud-title { font-size: 10px; color: #8b949e; font-weight: 700; }
-        .hud-value { font-size: 15px; color: #ffffff; font-weight: 700; }
-        #canvas3d { width: 100%; height: 100%; position: absolute; }
+        body { background-color: #0b0e14; color: white; font-family: sans-serif; }
+        .hud-grid { position: absolute; top: 20px; left: 20px; z-index: 10; display: grid; gap: 10px; }
+        .hud-card { background: rgba(0,0,0,0.7); padding: 10px; border-left: 3px solid #2ea043; }
+        #canvas3d { width: 100vw; height: 100vh; position: absolute; }
     </style>
 </head>
 <body>
-
-<div id="app-container">
     <div class="hud-grid">
-        <div class="hud-card"><div class="hud-title">NIVEL RÍO</div><div class="hud-value"><span id="val-rio">---</span> cm</div></div>
-        <div class="hud-card"><div class="hud-title">TEMP</div><div class="hud-value"><span id="val-temp">---</span> °C</div></div>
-        <div class="hud-card"><div class="hud-title">ALERTA</div><div class="hud-value"><span id="val-alerta">OK</span></div></div>
+        <div class="hud-card">Nivel Agua: <span id="val-agua">0</span> cm</div>
+        <div class="hud-card">Temp: <span id="val-temp">0</span> °C</div>
+        <div class="hud-card" id="card-alerta">Estado: <span id="val-alerta">Normal</span></div>
     </div>
     <div id="canvas3d"></div>
-</div>
 
-<!-- Cargamos librerías necesarias -->
 <script type="module">
     import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
     import { GLTFLoader } from 'https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
     import { OrbitControls } from 'https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 
-    let scene, camera, renderer, puenteModel, aguaMesh, particulasFuego;
-    const CHANNEL_ID = '3425550';
-    const READ_API_KEY = 'RHPXCZTP52KA8FII';
-
-    // 1. Configuración escena
-    scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
-    camera.position.set(20, 20, 20);
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    // CONFIGURACIÓN DE LECTURA
+    const CHANNEL_ID = '3420779'; // Tu ID de canal
+    
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.set(30, 20, 30);
+    let renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('canvas3d').appendChild(renderer.domElement);
     new OrbitControls(camera, renderer.domElement);
-    scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-    // 2. Cargar tu puente de GitHub
-    new GLTFLoader().load('https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/PUENTES1.glb', (gltf) => {
-        puenteModel = gltf.scene;
-        scene.add(puenteModel);
-        
-        // Asignar partes basándonos en los nombres de tu archivo GLB
-        aguaMesh = gltf.scene.getObjectByName('Superficie_Agua');
-        
-        // Crear fuego vinculado al puente
-        agregarFuego();
-    });
-
-    function agregarFuego() {
-        const geo = new THREE.BufferGeometry();
-        const pos = new Float32Array(150 * 3);
-        geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-        particulasFuego = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff4500, size: 0.5 }));
-        particulasFuego.visible = false;
-        scene.add(particulasFuego);
-    }
+    // Elemento fuego simple (esfera roja)
+    const fuegoGeo = new THREE.SphereGeometry(2, 16, 16);
+    const fuegoMat = new THREE.MeshBasicMaterial({ color: 0xff4500 });
+    const objetoFuego = new THREE.Mesh(fuegoGeo, fuegoMat);
+    objetoFuego.position.set(0, 5, 0);
+    objetoFuego.visible = false;
+    scene.add(objetoFuego);
 
     async function actualizar() {
         try {
+            // ThingSpeak envía los datos en 'feeds'
             const res = await fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json`);
             const d = await res.json();
             
-            // Actualizar datos
-            document.getElementById('val-rio').innerText = parseFloat(d.field1).toFixed(1);
-            document.getElementById('val-temp').innerText = parseFloat(d.field2).toFixed(1);
+            const temp = parseFloat(d.field1);
+            const agua = parseFloat(d.field3);
             
-            // Lógica Fuego (Si Temp > 21)
-            const temp = parseFloat(d.field2);
-            if(particulasFuego) particulasFuego.visible = (temp > 21);
+            // Actualizar HUD
+            document.getElementById('val-temp').innerText = temp.toFixed(1);
+            document.getElementById('val-agua').innerText = agua.toFixed(1);
             
-            // Rotación del modelo
-            if(puenteModel) puenteModel.rotation.z = (parseFloat(d.field4) * Math.PI / 180) * 0.1;
-            
-            // Nivel de agua
-            if(aguaMesh) aguaMesh.position.y = (27 - parseFloat(d.field1)) * 0.1;
-
-        } catch(e) {}
+            // Lógica de Fuego y Alerta
+            if(temp > 21.0) {
+                objetoFuego.visible = true;
+                document.getElementById('val-alerta').innerText = "¡INCENDIO!";
+                document.getElementById('card-alerta').style.borderColor = "red";
+            } else {
+                objetoFuego.visible = false;
+                document.getElementById('val-alerta').innerText = "Normal";
+                document.getElementById('card-alerta').style.borderColor = "#2ea043";
+            }
+        } catch(e) { console.log("Error leyendo ThingSpeak"); }
     }
 
     function animate() {
@@ -95,7 +76,7 @@
     }
     
     animate();
-    setInterval(actualizar, 3000);
+    setInterval(actualizar, 5000); // Actualiza cada 5 segundos
 </script>
 </body>
 </html>
