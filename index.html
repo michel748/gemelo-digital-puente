@@ -24,10 +24,10 @@
 <body>
 
     <div id="overlay">
-        <h3 style="margin-top:0;">🌉 Gemelo Digital en Vivo</h3>
-        <p>Agua (HC-SR04): <span id="txt-agua" class="val">--</span> cm</p>
-        <p>Inclinación X (MPU): <span id="txt-rotx" class="val">--</span> G</p>
-        <p>Temperatura (DHT22): <span id="txt-temp" class="val">--</span> °C</p>
+        <h3 style="margin-top:0;">Gemelo Digital en Vivo</h3>
+        <p>Agua: <span id="txt-agua" class="val">--</span> cm</p>
+        <p>Inclinación X: <span id="txt-rotx" class="val">--</span> °</p>
+        <p>Temperatura: <span id="txt-temp" class="val">--</span> °C</p>
         <p>Estado Incendio: <span id="txt-fuego">Normal</span></p>
     </div>
 
@@ -36,12 +36,9 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        const THINGER_USER = "edson75";
-        const DEVICE_ID = "Puente_ESP32";
-        const RESOURCE_ID = "sensores";
-        const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJXZWJUb2tlbiIsInN2ciI6InVzLWVhc3QuYXdzLnRoaW5nZXIuaW8iLCJ1c3IiOiJlZHNvbjc1In0.hDtWxwbIQYjls3Z5YHZ029BFzM2gwIuER8PctgCeDoY";
-        
-        const API_URL = `https://us-east.aws.thinger.io/v2/users/${THINGER_USER}/devices/${DEVICE_ID}/${RESOURCE_ID}`;
+        // Canal configurado como público en ThingSpeak
+        const CHANNEL_ID = "3420779";
+        const API_URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json`;
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a2e);
@@ -59,50 +56,48 @@
         dirLight.position.set(10, 30, 10);
         scene.add(dirLight);
 
-        let puenteTablero = null, aguaSuperficie = null, marcadorFuego = null;
+        let puenteTablero = null, aguaSuperficie = null;
 
         const loader = new GLTFLoader();
-        // RUTA ACTUALIZADA AL NUEVO ARCHIVO
-        const modelUrl = 'https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/PUENTES.glb';
+        const modelUrl = 'https://raw.githubusercontent.com/michel748/gemelo-digital-puente/main/PUENTES1.glb';
 
         loader.load(modelUrl, (gltf) => {
             const model = gltf.scene;
             scene.add(model);
-            
-            console.log("Estructura del modelo cargado:", model);
-
-            const box = new THREE.Box3().setFromObject(model);
-            const center = box.getCenter(new THREE.Vector3());
-            model.position.sub(center); 
-
             puenteTablero = model.getObjectByName('Tablero_Puente') || model;
             aguaSuperficie = model.getObjectByName('Superficie_Agua');
-            marcadorFuego = model.getObjectByName('Punto_Sensor_Temp');
-        }, undefined, (err) => {
-            console.error("Error al cargar el modelo:", err);
         });
 
         async function pedirDatos() {
             try {
-                const res = await fetch(API_URL, { headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` } });
+                const res = await fetch(API_URL);
                 if (!res.ok) return;
-                const json = await res.json();
-                const d = json.in ? json.in.out : (json.out || json);
+                const d = await res.json();
 
-                document.getElementById('txt-agua').innerText = (d.distancia_agua || 0).toFixed(1);
-                document.getElementById('txt-rotx').innerText = (d.inclinacion_x || 0).toFixed(3);
-                document.getElementById('txt-temp').innerText = (d.temperatura || 0).toFixed(1);
+                const temp = parseFloat(d.field1) || 0;
+                const agua = parseFloat(d.field3) || 0;
+                const rotX = parseFloat(d.field4) || 0;
 
-                if (puenteTablero) {
-                    puenteTablero.rotation.z = (d.inclinacion_x || 0) * 0.2;
+                document.getElementById('txt-agua').innerText = agua.toFixed(1);
+                document.getElementById('txt-rotx').innerText = rotX.toFixed(2);
+                document.getElementById('txt-temp').innerText = temp.toFixed(1);
+
+                const txtFuego = document.getElementById('txt-fuego');
+                if (temp > 40.0) {
+                    txtFuego.innerText = "¡ALERTA!";
+                    txtFuego.className = "fuego";
+                } else {
+                    txtFuego.innerText = "Normal";
+                    txtFuego.className = "";
                 }
-                if (aguaSuperficie) {
-                    aguaSuperficie.position.y = (100 - (d.distancia_agua || 0)) * 0.05;
-                }
-            } catch (e) { console.error("Error en conexión Thinger.io"); }
+
+                if (puenteTablero) puenteTablero.rotation.z = rotX * 0.01;
+                if (aguaSuperficie) aguaSuperficie.position.y = agua * 0.05;
+
+            } catch (e) { console.error("Error al conectar con ThingSpeak"); }
         }
 
-        setInterval(pedirDatos, 300);
+        setInterval(pedirDatos, 5000);
         function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
         animate();
     </script>
