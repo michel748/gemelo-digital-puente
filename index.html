@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemelo Digital - Puente</title>
+    <title>Gemelo Digital - Puente - Colores</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #1a1a2e; font-family: Arial, sans-serif; }
-        #overlay { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); color: white; padding: 15px 20px; border-radius: 8px; z-index: 10; font-size: 14px; }
-        .val { color: #00d2ff; font-weight: bold; }
-        .fuego { color: #ff4444; font-weight: bold; animation: blink 1s infinite; }
+        /* Fondo claro y limpio */
+        body { margin: 0; overflow: hidden; background: #fdfdfd; font-family: Arial, sans-serif; }
+        #overlay { position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.9); color: #333; padding: 15px 20px; border-radius: 8px; z-index: 10; font-size: 14px; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .val { color: #007bff; font-weight: bold; }
+        .fuego { color: #d9534f; font-weight: bold; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
     </style>
 
@@ -24,7 +25,7 @@
 <body>
 
     <div id="overlay">
-        <h3 style="margin-top:0;">🌉 Gemelo Digital en Vivo</h3>
+        <h3 style="margin-top:0; color: #555;">🌉 Gemelo Digital en Vivo</h3>
         <p>Agua (HC-SR04): <span id="txt-agua" class="val">--</span> cm</p>
         <p>Inclinación X (MPU): <span id="txt-rotx" class="val">--</span> G</p>
         <p>Temperatura (DHT22): <span id="txt-temp" class="val">--</span> °C</p>
@@ -36,7 +37,7 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // CREDENCIALES ACTUALIZADAS CON TU NUEVO TOKEN
+        // CREDENCIALES DE THINGER.IO
         const THINGER_USER = "edson75";
         const DEVICE_ID = "Puente_ESP32";
         const RESOURCE_ID = "sensores";
@@ -46,7 +47,7 @@
 
         // ESCENA 3D
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
+        scene.background = new THREE.Color(0xfdfdfd);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(15, 20, 30);
@@ -57,11 +58,11 @@
 
         const controls = new OrbitControls(camera, renderer.domElement);
 
-        // ILUMINACIÓN
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+        // ILUMINACIÓN (más suave para el fondo claro)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
         dirLight.position.set(10, 30, 10);
         scene.add(dirLight);
 
@@ -71,7 +72,9 @@
 
         const matFuego = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-        // CARGA DEL ARCHIVO .GLB
+        // ==========================================
+        // CARGA DEL ARCHIVO .GLB Y APLICACIÓN DE COLORES
+        // ==========================================
         const loader = new GLTFLoader();
         loader.load('puente.glb', (gltf) => {
             const model = gltf.scene;
@@ -96,9 +99,42 @@
             controls.target.set(0, 0, 0);
             controls.update();
 
-            scene.add(model);
-            console.log("¡Puente 3D cargado correctamente!");
+            // APLICACIÓN DE COLORES A LAS PIEZAS ESPECÍFICAS
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    console.log("Pieza encontrada:", child.name); // Ver los nombres exactos en la consola F12
 
+                    // Árboles y Vegetación -> Verde
+                    if (child.name.includes('Arbol') || child.name.includes('Vegetacion')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0x4d9c6a });
+                    }
+                    // Pasto y Terreno -> Verde amarillento
+                    else if (child.name.includes('Pasto') || child.name.includes('Terreno')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0xbed28a });
+                    }
+                    // Pistas (Asfalto) -> Gris oscuro
+                    else if (child.name.includes('Pista') || child.name.includes('Asfalto')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0x4a4a4a });
+                    }
+                    // Pilares -> Negro (brillante)
+                    else if (child.name.includes('Pilar')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.2 });
+                    }
+                    // Barandillas -> Gris metálico
+                    else if (child.name.includes('Barandilla')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+                    }
+                    // Suelo -> Gris claro
+                    else if (child.name.includes('Suelo')) {
+                        child.material = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+                    }
+                }
+            });
+
+            scene.add(model);
+            console.log("¡Puente 3D cargado correctamente con colores!");
+
+            // Asignar piezas para animación (usando los mismos nombres)
             puenteTablero = model.getObjectByName('Tablero_Puente') || model;
             aguaSuperficie = model.getObjectByName('Superficie_Agua');
             marcadorFuego = model.getObjectByName('Punto_Sensor_Temp');
