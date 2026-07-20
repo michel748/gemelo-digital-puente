@@ -6,7 +6,7 @@
     <title>Gemelo Digital - Puente</title>
     <style>
         body { margin: 0; overflow: hidden; background: #eef2f5; font-family: Arial, sans-serif; }
-        #overlay { position: absolute; top: 15px; left: 15px; background: rgba(255, 255, 255, 0.92); color: #222; padding: 15px 20px; border-radius: 8px; z-index: 10; font-size: 14px; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        #overlay { position: absolute; top: 15px; left: 15px; background: rgba(255, 255, 255, 0.95); color: #222; padding: 15px 20px; border-radius: 8px; z-index: 10; font-size: 14px; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
         .val { color: #0066cc; font-weight: bold; }
         .fuego { color: #d9534f; font-weight: bold; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0; } }
@@ -44,31 +44,30 @@
         
         const API_URL = `https://us-east.aws.thinger.io/v2/users/${THINGER_USER}/devices/${DEVICE_ID}/${RESOURCE_ID}`;
 
-        // ESCENA 3D
+        // ESCENA 3D CON FONDO CLARO
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xeef2f5);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(15, 20, 30);
+        camera.position.set(0, 15, 30);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
 
-        // ILUMINACIÓN REALISTA CON SOMBRAS
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        // ILUMINACIÓN MULTIDIRECCIONAL (Garantiza ver colores e iluminación de todos lados)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.2);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        dirLight.position.set(30, 50, 30);
-        dirLight.castShadow = true;
-        scene.add(dirLight);
+        const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.8);
+        dirLight1.position.set(20, 40, 20);
+        scene.add(dirLight1);
 
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-        scene.add(hemiLight);
+        const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight2.position.set(-20, -20, -20);
+        scene.add(dirLight2);
 
         let puenteTablero = null;
         let aguaSuperficie = null;
@@ -76,12 +75,12 @@
 
         const matFuego = new THREE.MeshBasicMaterial({ color: 0xff0000 });
 
-        // CARGA Y DESPLIEGUE SEGURO DEL MODELO 3D
+        // CARGA SEGURA DEL ARCHIVO .GLB
         const loader = new GLTFLoader();
         loader.load('puente.glb', (gltf) => {
             const model = gltf.scene;
 
-            // Centrado y escalado automático
+            // Reencuadre y centrado automático
             const box = new THREE.Box3().setFromObject(model);
             const center = box.getCenter(new THREE.Vector3());
             const size = box.getSize(new THREE.Vector3());
@@ -101,16 +100,8 @@
             controls.target.set(0, 0, 0);
             controls.update();
 
-            // Activar recepción y proyección de sombras en las mallas existentes
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                }
-            });
-
             scene.add(model);
-            console.log("¡Modelo visualizado correctamente!");
+            console.log("¡Modelo 3D desplegado exitosamente!");
 
             puenteTablero = model.getObjectByName('Tablero_Puente') || model;
             aguaSuperficie = model.getObjectByName('Superficie_Agua');
@@ -121,22 +112,20 @@
             console.error("Error al cargar puente.glb:", err);
         });
 
-        // CONSULTA DE DATOS A THINGER.IO
+        // CONSULTA DE DATOS EN TIEMPO REAL
         async function pedirDatos() {
             try {
                 const res = await fetch(API_URL, {
                     headers: { 'Authorization': `Bearer ${BEARER_TOKEN}` }
                 });
-                if (!res.ok) {
-                    console.log("Esperando respuesta de Thinger.io... Status:", res.status);
-                    return;
-                }
+                if (!res.ok) return;
+
                 const json = await res.json();
                 const datos = json.in ? json.in.out : (json.out || json);
 
                 actualizar3D(datos);
             } catch (e) {
-                console.log("Conectando con ESP32...");
+                // Esperando ESP32...
             }
         }
 
